@@ -28,6 +28,7 @@ import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
 import {StopTrainingComponent} from "./training/current-training/stop-training.component";
 import {MatDialogModule} from "@angular/material/dialog";
 import {AuthService} from "./auth/auth.service";
+import {TrainingService} from "./training/training.service";
 
 @NgModule({
   declarations: [
@@ -50,11 +51,9 @@ import {AuthService} from "./auth/auth.service";
         MaterialModule,
         FlexLayoutModule,
         FormsModule,
-        MatProgressSpinnerModule,
-        MatDialogModule,
         ReactiveFormsModule,
     ],
-  providers: [AuthService],
+  providers: [AuthService, TrainingService],
   bootstrap: [AppComponent],
   entryComponents: [StopTrainingComponent]
 })
