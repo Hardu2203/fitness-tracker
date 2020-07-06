@@ -1,35 +1,61 @@
 import {ExerciseModel} from "./exercise.model";
-import {Subject} from "rxjs";
-import {OnDestroy} from "@angular/core";
+import {Subject, Subscription} from "rxjs";
+import {Injectable, OnDestroy} from "@angular/core";
+import {map} from "rxjs/operators";
+import {AngularFirestore} from "angularfire2/firestore";
+import {UIService} from "../shared/ui.service";
 
+@Injectable()
 export class TrainingService implements OnDestroy{
 
     currentExerciseSubject = new Subject<ExerciseModel>();
-    private exercises: ExerciseModel[] = [];
+    exercisesChanged = new Subject<ExerciseModel[]>();
+    finishedExercisesChanged = new Subject<ExerciseModel[]>();
+    fbSubs: Subscription[] = [];
     private currentExercise: ExerciseModel;
 
-    availableExercises: ExerciseModel[] = [
-        { id: 'crunches', name: 'Crunches', duration: 30, calories: 8 },
-        { id: 'touch-toes', name: 'Touch Toes', duration: 180, calories: 15 },
-        { id: 'side-lunges', name: 'Side Lunges', duration: 120, calories: 18 },
-        { id: 'burpees', name: 'Burpees', duration: 60, calories: 8 }
-    ];
+    private availableExercises: ExerciseModel[] = [];
 
-    constructor() {
+    constructor(private db: AngularFirestore, private uiService: UIService) {
 
     }
 
-    getAvailableExercises(): ExerciseModel[] {
-        return this.availableExercises.slice();
+    fetchAvailableExercises() {
+        this.uiService.loadingStateChanged.next(true)
+        this.fbSubs.push(this.db.collection('availableExercises').snapshotChanges()
+            .pipe(map(docArray => {
+                    return docArray.map(doc => {
+                        return {
+                            id: doc.payload.doc.id,
+                            name: doc.payload.doc.data()["name"],
+                            duration: doc.payload.doc.data()["duration"],
+                            calories: doc.payload.doc.data()["calories"]
+                        };
+                    });
+                }
+            )).subscribe((exercises: ExerciseModel[]) => {
+                this.uiService.loadingStateChanged.next(false)
+                this.availableExercises = exercises
+                this.exercisesChanged.next([...this.availableExercises])
+            }, error => {
+                this.uiService.loadingStateChanged.next(false);
+                this.uiService.showSnackbar("Fetching exercises failer, please try again later", null, 3000);
+                this.exercisesChanged.next(null)
+            }));
+    }
+
+    private addDataToDatabase(exercise: ExerciseModel) {
+        this.db.collection('finishedExercises').add(exercise);
     }
 
     startExercise(selectedId: string) {
+        // this.db.doc("availableExercises/" + selectedId).update({lastSetected: new Date()})
         this.currentExercise = this.availableExercises.find(ex => ex.id === selectedId);
         this.currentExerciseSubject.next({ ...this.currentExercise });
     }
 
     completeExercise() {
-        this.exercises.push({
+        this.addDataToDatabase({
                 ...this.currentExercise,
                 date: new Date(),
                 state: 'completed'
@@ -39,10 +65,10 @@ export class TrainingService implements OnDestroy{
     }
 
     cancelExercise(progress: number) {
-        this.exercises.push({
+        this.addDataToDatabase({
             ...this.currentExercise,
             duration: this.currentExercise.duration * (progress / 100),
-            calories: this.currentExercise.duration * (progress / 100),
+            calories: this.currentExercise.calories * (progress / 100),
             date: new Date(),
             state: 'cancelled'
         });
@@ -52,6 +78,18 @@ export class TrainingService implements OnDestroy{
 
     getCurrentExercise() {
         return { ...this.currentExercise};
+    }
+
+    fetchPastExercises() {
+        this.fbSubs.push(this.db.collection("finishedExercises")
+            .valueChanges()
+            .subscribe( (exercises : ExerciseModel[]) => {
+                this.finishedExercisesChanged.next(exercises);
+            }));
+    }
+
+    cancelSubscriptions() {
+        this.fbSubs.forEach(sub => sub.unsubscribe())
     }
 
     ngOnDestroy(): void {

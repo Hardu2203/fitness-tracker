@@ -1,5 +1,4 @@
-import { Component, OnInit } from '@angular/core';
-import {TrainingService} from "../training/training.service";
+import {Component, OnInit} from '@angular/core';
 
 @Component({
   selector: 'app-welcome',
