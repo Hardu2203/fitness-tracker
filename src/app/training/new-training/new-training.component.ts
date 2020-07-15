@@ -4,6 +4,7 @@ import {TrainingService} from "../training.service";
 import {Observable, observable, Subscription} from "rxjs";
 import {NgForm} from "@angular/forms";
 import {UIService} from "../../shared/ui.service";
+import * as fromTraining from '../training.reducer';
 import * as fromRoot from '../../app.reducer';
 import {Store} from "@ngrx/store";
 
@@ -14,18 +15,19 @@ import {Store} from "@ngrx/store";
 })
 export class NewTrainingComponent implements OnInit, OnDestroy {
 
-    exercises: ExerciseModel[];
-    private exerciseListSubs = new Subscription;
+    exercises$: Observable<ExerciseModel[]>;
+    // private exerciseListSubs = new Subscription;
     isLoading$: Observable<boolean>;
 
-    constructor(private trainingService: TrainingService, private uiService: UIService, private store: Store<fromRoot.State>) {
+    constructor(private trainingService: TrainingService, private uiService: UIService, private store: Store<fromTraining.State>) {
     }
 
     ngOnInit(): void {
         this.isLoading$ = this.store.select(fromRoot.getIsLoading)
-        this.exerciseListSubs = this.trainingService.exercisesChanged.subscribe( exercises => {
-                this.exercises = exercises;
-            })
+        // this.exerciseListSubs = this.trainingService.exercisesChanged.subscribe( exercises => {
+        //         this.exercises = exercises;
+        //     })
+        this.exercises$ = this.store.select(fromTraining.getAvailableExercises);
         this.fetchExercises();
     }
 
@@ -38,8 +40,8 @@ export class NewTrainingComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        if (this.exerciseListSubs) {
-            this.exerciseListSubs.unsubscribe();
-        }
+        // if (this.exerciseListSubs) {
+        //     this.exerciseListSubs.unsubscribe();
+        // }
     }
 }
