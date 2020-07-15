@@ -4,6 +4,9 @@ import {Injectable, OnDestroy} from "@angular/core";
 import {map} from "rxjs/operators";
 import {AngularFirestore} from "angularfire2/firestore";
 import {UIService} from "../shared/ui.service";
+import * as UI from '../shared/ui.actions';
+import * as fromRoot from '../app.reducer';
+import {Store} from "@ngrx/store";
 
 @Injectable()
 export class TrainingService implements OnDestroy{
@@ -16,12 +19,12 @@ export class TrainingService implements OnDestroy{
 
     private availableExercises: ExerciseModel[] = [];
 
-    constructor(private db: AngularFirestore, private uiService: UIService) {
+    constructor(private db: AngularFirestore, private uiService: UIService, private store: Store<fromRoot.State>) {
 
     }
 
     fetchAvailableExercises() {
-        this.uiService.loadingStateChanged.next(true)
+        this.store.dispatch(new UI.StartLoading())
         this.fbSubs.push(this.db.collection('availableExercises').snapshotChanges()
             .pipe(map(docArray => {
                     return docArray.map(doc => {
@@ -34,11 +37,11 @@ export class TrainingService implements OnDestroy{
                     });
                 }
             )).subscribe((exercises: ExerciseModel[]) => {
-                this.uiService.loadingStateChanged.next(false)
+                this.store.dispatch(new UI.StopLoading())
                 this.availableExercises = exercises
                 this.exercisesChanged.next([...this.availableExercises])
             }, error => {
-                this.uiService.loadingStateChanged.next(false);
+                this.store.dispatch(new UI.StopLoading())
                 this.uiService.showSnackbar("Fetching exercises failer, please try again later", null, 3000);
                 this.exercisesChanged.next(null)
             }));
